@@ -1,0 +1,11 @@
+{
+    "spark_conf":{
+        "master": "local[*]",
+        "app_name":"ny_bykeshares_analytics"
+    },
+
+    "log":{
+        "level":null
+    }
+
+}
