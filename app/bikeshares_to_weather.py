@@ -1,59 +1,59 @@
-import os,sys, logging, json, re
-from typing import Callable, Optional
-from pyspark.sql.functions import col, split, lit, concat
-
+import os, sys
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-LOG_FILE = f"{PROJECT_DIR}/logs/app-{os.path.basename(__file__)}.log"
-LOG_FORMAT = f"%(asctime)s -- LINE:%(lineno)d - %(name)s -- %(levelname)s -- %(funcName)s -- %(message)s"
-logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG, format=LOG_FORMAT)
-logger = logging.getLogger("py4j")
-
-
 sys.path.insert(1,PROJECT_DIR)
-from class_sparksession import pyspark_init
+
+from classes.sparkinit import SparkInstance
+from classes.utilities import Common as util
 
 
-def open_config(filepath) -> dict:
-    if isinstance(filepath, str) and os.path.exists(filepath):
-        with open(filepath, 'r') as f:
-            data = json.load(f)
-        return data
+config = util.open_config(f'{PROJECT_DIR}/configs/config.json') 
 
-config = open_config(f'{PROJECT_DIR}/configs/config.json') 
+spark = SparkInstance(config).spark_starter()
 
-def start_spark_session(config):
-    spark = pyspark_init.PySparkInstance().spark_starter(config)
-    return spark
+bikesharesDf = spark.read.csv('./data/sample.csv', header=True)
 
-spark = start_spark_session(config)
+transformed_bikesharesDf = util.parse_date(bikesharesDf)
+
+final_bikesharesDf = transformed_bikesharesDf\
+    .withColumnRenamed('start station name', 'start_station_name')\
+    .withColumnRenamed('end station name',  'end_station_name')\
+    .withColumnRenamed('birth year', 'birth_year')
 
 
-bike_sharesDf = spark.read.csv(f'{PROJECT_DIR}/ny_bikeshare_full_2016/201605-citibike-tripdata.csv', header=True)
-#bike_sharesDf = spark.read.csv(f'{PROJECT_DIR}/data/sample_bikeshares.csv', header=True)
+weatherDf = spark.read.csv('./data/weather_data_nyc_2016.csv', header=True)
 
-bike_sharesDf_transform = bike_sharesDf.withColumn('date', split(bike_sharesDf['starttime'], ' ').getItem(0))
+weatherDf = weatherDf.withColumnRenamed('maximum temperature', 'maximum_temperature')\
+                    .withColumnRenamed( 'minimum temperature', 'minimum_temperature')\
+                    .withColumnRenamed('average temperature', 'average_temperature')\
+                    .withColumnRenamed('snow fall', 'snow_fall')\
+                    .withColumnRenamed('snow depth', 'snow_depth')
 
-bike_sharesDf_final = bike_sharesDf_transform.withColumn('year', split(bike_sharesDf_transform['date'], '/').getItem(2))\
-                        .withColumn('month', split(bike_sharesDf_transform['date'], '/').getItem(1))\
-                        .withColumn('day', split(bike_sharesDf_transform['date'], '/').getItem(0))\
-                        .withColumn('date_join', concat(col('day'), lit('-'), ('month'), lit('-'), col('year')))\
-                        .drop('date')\
-                        .drop(col('month'))\
-                        .drop(col('year'))
+bikeshares_wheaterDf = final_bikesharesDf.join(weatherDf, final_bikesharesDf['date_for_join'] == weatherDf['date'], 'inner')
 
-ny_weatherdf = spark.read.csv(f'{PROJECT_DIR}/data/weather_data_nyc_2016.csv', header=True)
+bikeshares_wheaterDf_final = bikeshares_wheaterDf.select( 'tripduration', 
+                                                        'start_station_name', 
+                                                        'end_station_name',
+                                                        'usertype',
+                                                        'birth_year',
+                                                        'gender',
+                                                        'date',
+                                                        'maximum_temperature',
+                                                        'minimum_temperature',
+                                                        'average_temperature',
+                                                        'precipitation',
+                                                        'snow_fall',
+                                                        'snow_depth')
 
-final_df = bike_sharesDf_final\
-    .join(ny_weatherdf, bike_sharesDf_final['date_join'] == ny_weatherdf['date'])
+util.handle_df_columns(bikeshares_wheaterDf, final_bikesharesDf)
 
-final_df = final_df.drop('date_join')
+bikeshares_wheaterDf_final.write.mode('overwrite').csv('./data/result_csv')
 
-test_df = final_df
+bikeshares_wheater_analyticsDf = spark.read.csv('./data/result_csv', schema=util.schema(), header=True)
 
-test_df.coalesce(1).write.option("header",True)\
-        .csv(f"{PROJECT_DIR}/data/result")
+bikeshares_wheater_analyticsDf = util.preanalytics_filter(bikeshares_wheater_analyticsDf)
 
-print(bike_sharesDf_final.count())
-print(test_df.count())
+bikeshares_wheater_analyticsDf.write.mode('overwrite').parquet('./data/result_parquet')
+
+analyticsDf = spark.read.parquet('./data/result_parquet')
+
