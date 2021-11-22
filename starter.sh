@@ -1,3 +1,3 @@
 #!/usr/bin/bash
 
-python app/bikeshares_to_weather.py
+python app/bikeshare_to_weather.py

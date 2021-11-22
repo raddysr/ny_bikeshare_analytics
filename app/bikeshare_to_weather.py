@@ -11,11 +11,11 @@ config = util.open_config(f'{PROJECT_DIR}/configs/config.json')
 
 spark = SparkInstance(config).spark_starter()
 
-bikesharesDf = spark.read.csv('./data/sample.csv', header=True)
+bikeshareDf = spark.read.csv('./data/sample.csv', header=True)
 
-transformed_bikesharesDf = util.parse_date(bikesharesDf)
+transformed_bikeshareDf = util.parse_date(bikeshareDf)
 
-final_bikesharesDf = transformed_bikesharesDf\
+final_bikeshareDf = transformed_bikeshareDf\
     .withColumnRenamed('start station name', 'start_station_name')\
     .withColumnRenamed('end station name',  'end_station_name')\
     .withColumnRenamed('birth year', 'birth_year')
@@ -29,9 +29,9 @@ weatherDf = weatherDf.withColumnRenamed('maximum temperature', 'maximum_temperat
                     .withColumnRenamed('snow fall', 'snow_fall')\
                     .withColumnRenamed('snow depth', 'snow_depth')
 
-bikeshares_wheaterDf = final_bikesharesDf.join(weatherDf, final_bikesharesDf['date_for_join'] == weatherDf['date'], 'inner')
+bikeshare_wheaterDf = final_bikeshareDf.join(weatherDf, final_bikeshareDf['date_for_join'] == weatherDf['date'], 'inner')
 
-bikeshares_wheaterDf_final = bikeshares_wheaterDf.select( 'tripduration', 
+bikeshare_wheaterDf_final = bikeshare_wheaterDf.select( 'tripduration', 
                                                         'start_station_name', 
                                                         'end_station_name',
                                                         'usertype',
@@ -45,15 +45,15 @@ bikeshares_wheaterDf_final = bikeshares_wheaterDf.select( 'tripduration',
                                                         'snow_fall',
                                                         'snow_depth')
 
-util.handle_df_columns(bikeshares_wheaterDf, final_bikesharesDf)
+util.handle_df_columns(bikeshare_wheaterDf, final_bikeshareDf)
 
-bikeshares_wheaterDf_final.write.mode('overwrite').csv('./data/result_csv')
+bikeshare_wheaterDf_final.write.mode('overwrite').csv('./data/result_csv')
 
-bikeshares_wheater_analyticsDf = spark.read.csv('./data/result_csv', schema=util.schema(), header=True)
+bikeshare_wheater_analyticsDf = spark.read.csv('./data/result_csv', schema=util.schema(), header=True)
 
-bikeshares_wheater_analyticsDf = util.preanalytics_filter(bikeshares_wheater_analyticsDf)
+bikeshare_wheater_analyticsDf = util.preanalytics_filter(bikeshare_wheater_analyticsDf)
 
-bikeshares_wheater_analyticsDf.write.mode('overwrite').parquet('./data/result_parquet')
+bikeshare_wheater_analyticsDf.write.mode('overwrite').parquet('./data/result_parquet')
 
 analyticsDf = spark.read.parquet('./data/result_parquet')
 

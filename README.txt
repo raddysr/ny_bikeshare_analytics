@@ -1,8 +1,8 @@
 PROJECT STRUCTURE:
 
-	ny_bikeshares_analytics/
+	ny_bikeshare_analytics/
 		├── app
-		│   └── bikeshares_to_weather.py
+		│   └── bikeshare_to_weather.py
 		├── classes
 		│   ├── __init__.py
 		│   ├── sparkinit.py
